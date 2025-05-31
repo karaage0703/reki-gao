@@ -411,8 +411,6 @@ DEBUG=true python -m src.main
 問題や質問がある場合は、以下の方法でお問い合わせください：
 
 - **Issues**: GitHub Issues を作成
-- **Discussions**: GitHub Discussions で議論
-- **Email**: your-email@example.com
 
 ## 🗺️ ロードマップ
 

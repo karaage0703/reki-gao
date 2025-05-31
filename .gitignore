@@ -174,7 +174,9 @@ cython_debug/
 
 # Project specific
 # Data files and temporary uploads
-data/
+data/kaokore/kaokore/
+data/kaokore/*.bak*
+data/kaokore/*.new*
 temp/
 uploads/
 
