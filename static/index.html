@@ -257,6 +257,64 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .upload-method-btn {
+            background: #f8f9ff;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-method-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .upload-method-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .camera-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .camera-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .camera-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .camera-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .camera-btn.secondary {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .camera-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -267,29 +325,6 @@
         </div>
 
         <div class="main-content">
-            <!-- 統計情報セクション -->
-            <div class="stats-section">
-                <h2 style="text-align: center; margin-bottom: 20px; color: #333;">システム統計</h2>
-                <div class="stats-grid" id="statsGrid">
-                    <div class="stat-item">
-                        <div class="stat-number" id="totalVectors">-</div>
-                        <div class="stat-label">KaoKore処理済み</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="totalMetadata">-</div>
-                        <div class="stat-label">歴史的人物</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="vectorDimension">-</div>
-                        <div class="stat-label">特徴量次元</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="downloadedImages">-</div>
-                        <div class="stat-label">総画像数</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- KaoKoreデータセット統計 -->
             <div class="stats-section">
                 <h2 style="text-align: center; margin-bottom: 20px; color: #333;">📚 KaoKoreデータセット</h2>
@@ -297,6 +332,14 @@
                     <div class="stat-item">
                         <div class="stat-number" id="kaokoreTotal">-</div>
                         <div class="stat-label">総画像数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalVectors">-</div>
+                        <div class="stat-label">使用画像数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="vectorDimension">-</div>
+                        <div class="stat-label">特徴量次元</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-number" id="kaokoreMale">-</div>
@@ -330,6 +373,17 @@
             <div class="upload-section">
                 <h2 style="color: #333; margin-bottom: 20px;">顔写真をアップロード</h2>
                 
+                <!-- アップロード方法選択 -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <button class="upload-method-btn active" id="fileUploadBtn" onclick="switchUploadMethod('file')">
+                        📁 ファイル選択
+                    </button>
+                    <button class="upload-method-btn" id="cameraBtn" onclick="switchUploadMethod('camera')">
+                        📷 カメラ撮影
+                    </button>
+                </div>
+
+                <!-- ファイルアップロード -->
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📸</div>
                     <p style="font-size: 1.2em; color: #667eea; margin-bottom: 15px;">
@@ -341,6 +395,28 @@
                     <input type="file" id="fileInput" class="file-input" accept="image/*">
                     <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
                         対応形式: JPG, PNG, GIF (最大10MB)
+                    </p>
+                </div>
+
+                <!-- カメラセクション -->
+                <div class="camera-section" id="cameraSection" style="display: none;">
+                    <div class="camera-container">
+                        <video id="cameraVideo" autoplay playsinline style="width: 100%; max-width: 400px; border-radius: 15px;"></video>
+                        <canvas id="cameraCanvas" style="display: none;"></canvas>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="camera-btn" id="startCameraBtn" onclick="startCamera()">
+                            📷 カメラを開始
+                        </button>
+                        <button class="camera-btn" id="captureBtn" onclick="capturePhoto()" style="display: none;">
+                            📸 写真を撮影
+                        </button>
+                        <button class="camera-btn secondary" id="stopCameraBtn" onclick="stopCamera()" style="display: none;">
+                            ⏹️ カメラを停止
+                        </button>
+                    </div>
+                    <p style="margin-top: 15px; color: #666; font-size: 0.9em;">
+                        カメラへのアクセス許可が必要です
                     </p>
                 </div>
 
@@ -385,13 +461,10 @@
                 const response = await fetch('/api/v1/statistics');
                 const stats = await response.json();
 
-                document.getElementById('totalVectors').textContent = stats.search_engine.total_vectors || '100';
-                document.getElementById('totalMetadata').textContent = kaokoreStats.statistics.total_images;
-                document.getElementById('vectorDimension').textContent = stats.search_engine.vector_dimension || '1024';
-                document.getElementById('downloadedImages').textContent = kaokoreStats.statistics.total_images;
-
-                // KaoKore詳細統計の表示
+                // KaoKore統計の表示（マージ版）
                 document.getElementById('kaokoreTotal').textContent = kaokoreStats.statistics.total_images;
+                document.getElementById('totalVectors').textContent = stats.search_engine.total_vectors || '100';
+                document.getElementById('vectorDimension').textContent = stats.search_engine.vector_dimension || '128';
                 document.getElementById('kaokoreMale').textContent = kaokoreStats.statistics.gender_male;
                 document.getElementById('kaokoreFemale').textContent = kaokoreStats.statistics.gender_female;
                 document.getElementById('kaokoreNoble').textContent = kaokoreStats.statistics.status_noble;
@@ -469,6 +542,107 @@
             reader.readAsDataURL(file);
 
             hideError();
+        }
+
+        // カメラ関連の変数
+        let cameraStream = null;
+        let currentUploadMethod = 'file';
+
+        // アップロード方法の切り替え
+        function switchUploadMethod(method) {
+            currentUploadMethod = method;
+            
+            // ボタンの状態を更新
+            document.getElementById('fileUploadBtn').classList.toggle('active', method === 'file');
+            document.getElementById('cameraBtn').classList.toggle('active', method === 'camera');
+            
+            // セクションの表示切り替え
+            document.getElementById('uploadArea').style.display = method === 'file' ? 'block' : 'none';
+            document.getElementById('cameraSection').style.display = method === 'camera' ? 'block' : 'none';
+            
+            // カメラが非アクティブになった場合は停止
+            if (method !== 'camera' && cameraStream) {
+                stopCamera();
+            }
+            
+            // プレビューをクリア
+            document.getElementById('previewSection').style.display = 'none';
+            selectedFile = null;
+            document.getElementById('searchBtn').disabled = true;
+        }
+
+        // カメラを開始
+        async function startCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user' // フロントカメラを優先
+                    }
+                };
+
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = cameraStream;
+
+                // ボタンの状態を更新
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('captureBtn').style.display = 'inline-block';
+                document.getElementById('stopCameraBtn').style.display = 'inline-block';
+
+            } catch (error) {
+                console.error('カメラアクセスエラー:', error);
+                showError('カメラにアクセスできませんでした。ブラウザの設定を確認してください。');
+            }
+        }
+
+        // 写真を撮影
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const context = canvas.getContext('2d');
+
+            // キャンバスのサイズをビデオに合わせる
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // ビデオフレームをキャンバスに描画
+            context.drawImage(video, 0, 0);
+
+            // キャンバスからBlobを作成
+            canvas.toBlob((blob) => {
+                // Fileオブジェクトを作成
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                selectedFile = new File([blob], `camera-capture-${timestamp}.jpg`, { type: 'image/jpeg' });
+
+                // プレビュー表示
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('previewSection').style.display = 'block';
+                    document.getElementById('searchBtn').disabled = false;
+                };
+                reader.readAsDataURL(selectedFile);
+
+                hideError();
+            }, 'image/jpeg', 0.8);
+        }
+
+        // カメラを停止
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            const video = document.getElementById('cameraVideo');
+            video.srcObject = null;
+
+            // ボタンの状態を更新
+            document.getElementById('startCameraBtn').style.display = 'inline-block';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('stopCameraBtn').style.display = 'none';
         }
 
         async function searchSimilarFaces() {
