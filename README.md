@@ -9,9 +9,11 @@
 ## ✨ 主な機能
 
 - **顔画像アップロード**: JPEG/PNG形式の画像アップロード対応
-- **顔検出・特徴量抽出**: OpenCV、Dlib、FaceNetを使用した高精度な顔認識
-- **類似顔検索**: FAISSを使用した高速ベクトル検索
+- **📷 カメラ撮影機能**: リアルタイムカメラプレビューと写真撮影
+- **顔検出・特徴量抽出**: OpenCV LBPベースのハイブリッド特徴量抽出
+- **類似顔検索**: コサイン類似度による高速ベクトル検索
 - **結果表示**: 類似度と共に歴史上の人物情報を表示
+- **WebGUI**: 統合された使いやすいWebインターフェース
 - **REST API**: FastAPIベースの高性能API
 
 ## 🛠️ 技術スタック
@@ -20,9 +22,12 @@
 |----------------|------------------------------------|
 | 言語           | Python 3.9+                       |
 | Webフレームワーク | FastAPI                          |
-| 顔認識         | OpenCV, Dlib, FaceNet, DeepFace   |
-| ベクトル検索   | FAISS                              |
+| 顔認識         | OpenCV LBP + HOG + 統計的特徴量   |
+| ベクトル検索   | scikit-learn NearestNeighbors     |
+| 類似度計算     | コサイン類似度                     |
 | 画像処理       | OpenCV, Pillow                     |
+| フロントエンド | HTML/CSS/JavaScript (WebGUI)      |
+| データセット   | ROIS-CODH KaoKore                  |
 | テスト         | pytest                             |
 | パッケージ管理 | uv                                 |
 
@@ -95,6 +100,7 @@ uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 
 サーバーが起動したら、以下のURLでアクセスできます：
 
+- **WebGUI**: http://localhost:8000/ （メインアプリケーション）
 - **API ドキュメント**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 - **ヘルスチェック**: http://localhost:8000/api/v1/health
@@ -410,9 +416,12 @@ DEBUG=true python -m src.main
 
 ## 🗺️ ロードマップ
 
-- [ ] フロントエンド UI の実装
-- [ ] リアルタイム顔検出（Webカメラ対応）
-- [ ] 和風デザインの UI/UX
+- [x] **WebGUI実装** - 統合されたWebインターフェース
+- [x] **カメラ撮影機能** - リアルタイムカメラプレビューと写真撮影
+- [x] **KaoKoreデータセット統合** - 実際の歴史的人物画像データ
+- [x] **特徴量抽出システム** - OpenCV LBPベースのハイブリッド手法
+- [x] **統計情報表示** - データセット統計とシステム情報
+- [ ] 和風デザインの UI/UX改善
 - [ ] 結果の共有機能
 - [ ] 多言語対応
 - [ ] Docker コンテナ対応
