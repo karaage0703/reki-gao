@@ -71,7 +71,7 @@ async def startup_event():
 
         # KaoKore類似検索の初期化（設定ファイルまたはコマンドライン引数から制限値を取得）
         logger.info("Initializing KaoKore similarity searcher...")
-        get_kaokore_similarity_searcher()  # インスタンスを初期化（グローバル変数に保存される）
+        get_kaokore_similarity_searcher()  # インスタンスを初期化（設定値を使用）
 
         logger.info("reki-gao API server started successfully!")
 

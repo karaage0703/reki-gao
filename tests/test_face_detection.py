@@ -5,6 +5,7 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch
+import cv2
 
 from src.face_detection import FaceDetector
 
@@ -19,7 +20,7 @@ class TestFaceDetector:
     def test_init(self):
         """初期化のテスト"""
         assert self.detector.confidence_threshold == 0.8
-        assert self.detector.dlib_detector is not None
+        assert self.detector.face_cascade is not None
 
     def test_detect_faces_empty_image(self):
         """空の画像での顔検出テスト"""
@@ -32,29 +33,23 @@ class TestFaceDetector:
         faces = self.detector.detect_faces(None)
         assert faces == []
 
-    def test_detect_faces_valid_image(self):
+    @patch("cv2.CascadeClassifier.detectMultiScale")
+    def test_detect_faces_valid_image(self, mock_detect):
         """有効な画像での顔検出テスト"""
         # サンプル画像を作成（300x300のランダム画像）
         test_image = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
 
-        # dlibの顔検出をモック
-        with patch.object(self.detector.dlib_detector, "__call__") as mock_detect:
-            # モックの戻り値を設定（顔が1つ検出されたと仮定）
-            mock_face = Mock()
-            mock_face.left.return_value = 50
-            mock_face.top.return_value = 50
-            mock_face.right.return_value = 150
-            mock_face.bottom.return_value = 150
-            mock_detect.return_value = [mock_face]
+        # OpenCVの顔検出をモック
+        mock_detect.return_value = np.array([[50, 50, 100, 100]])  # x, y, w, h
 
-            faces = self.detector.detect_faces(test_image)
+        faces = self.detector.detect_faces(test_image)
 
-            assert len(faces) == 1
-            assert faces[0]["x1"] == 50
-            assert faces[0]["y1"] == 50
-            assert faces[0]["x2"] == 150
-            assert faces[0]["y2"] == 150
-            assert faces[0]["method"] == "dlib"
+        assert len(faces) == 1
+        assert faces[0]["x1"] == 50
+        assert faces[0]["y1"] == 50
+        assert faces[0]["x2"] == 150  # x + w
+        assert faces[0]["y2"] == 150  # y + h
+        assert faces[0]["method"] == "opencv_haar"
 
     def test_crop_face_valid(self):
         """有効な顔領域の切り抜きテスト"""
@@ -137,6 +132,34 @@ class TestFaceDetector:
         """空の顔リストのフィルタリングテスト"""
         filtered = self.detector._filter_faces([])
         assert filtered == []
+
+    def test_detect_faces_no_detection(self):
+        """顔が検出されない場合のテスト"""
+        test_image = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
+
+        with patch("cv2.CascadeClassifier.detectMultiScale") as mock_detect:
+            mock_detect.return_value = np.array([])  # 顔が検出されない
+
+            faces = self.detector.detect_faces(test_image)
+            assert faces == []
+
+    def test_detect_faces_multiple_detection(self):
+        """複数の顔が検出される場合のテスト"""
+        test_image = np.random.randint(0, 255, (300, 300, 3), dtype=np.uint8)
+
+        with patch("cv2.CascadeClassifier.detectMultiScale") as mock_detect:
+            # 2つの顔を検出
+            mock_detect.return_value = np.array(
+                [
+                    [50, 50, 100, 100],  # 1つ目の顔
+                    [200, 200, 80, 80],  # 2つ目の顔
+                ]
+            )
+
+            faces = self.detector.detect_faces(test_image)
+            assert len(faces) == 2
+            assert faces[0]["x1"] == 50
+            assert faces[1]["x1"] == 200
 
 
 @pytest.fixture
