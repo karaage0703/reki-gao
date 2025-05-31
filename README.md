@@ -1,96 +1,316 @@
-# Python-Boilerplate-LLM
+# reki-gao
 
-このリポジトリはAIコーディングツール（Cline/Cursor等）を活用したPythonプロジェクト開発のためのボイラープレートです。LLMが設計書を自動生成し、それに基づいて実装を行うワークフローを前提としています。
+**reki-gao** は、現代人の顔写真をもとに、ROIS-CODH「顔貌コレクション」（ガンボウコレクション）に含まれる歴史上の人物の顔と似ている人物を見つけて表示する Web アプリケーションです。
 
-## 機能
+## 🎯 概要
 
-- LLMによる設計書自動生成と実装の一貫したワークフロー
-- 設計書テンプレート（docs/design.md.sample）をベースにLLMが要件に合わせた設計書を作成
-- uvを使用した仮想環境管理
-- src/とtests/ディレクトリによる構造化
-- メインプログラムのエントリーポイント
-- pytestを使用したテスト例
+現代の顔認識技術と歴史的な肖像画データベースを組み合わせ、「時空を超えた顔探し体験」を提供します。ユーザーがアップロードした顔画像と、古典的な肖像データベース（顔貌コレクション）を比較し、類似した顔を探して表示します。
 
-## 使い方
+## ✨ 主な機能
 
-### 開発環境のセットアップ
+- **顔画像アップロード**: JPEG/PNG形式の画像アップロード対応
+- **顔検出・特徴量抽出**: OpenCV、Dlib、FaceNetを使用した高精度な顔認識
+- **類似顔検索**: FAISSを使用した高速ベクトル検索
+- **結果表示**: 類似度と共に歴史上の人物情報を表示
+- **REST API**: FastAPIベースの高性能API
 
-1. uvによる仮想環境の作成とパッケージのインストール:
+## 🛠️ 技術スタック
+
+| 項目           | 技術                               |
+|----------------|------------------------------------|
+| 言語           | Python 3.9+                       |
+| Webフレームワーク | FastAPI                          |
+| 顔認識         | OpenCV, Dlib, FaceNet, DeepFace   |
+| ベクトル検索   | FAISS                              |
+| 画像処理       | OpenCV, Pillow                     |
+| テスト         | pytest                             |
+| パッケージ管理 | uv                                 |
+
+## 📦 インストール
+
+### 前提条件
+
+- Python 3.9以上
+- uv（Pythonパッケージマネージャー）
+
+### uvのインストール
 
 ```bash
-uv venv
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-2. 開発用パッケージのインストール:
+### プロジェクトのセットアップ
+
+1. **リポジトリのクローン**
 
 ```bash
+git clone https://github.com/your-username/reki-gao.git
+cd reki-gao
+```
+
+2. **仮想環境の作成と依存関係のインストール**
+
+```bash
+# 仮想環境を作成
+uv venv
+
+# 仮想環境をアクティベート
+# macOS/Linux
+source .venv/bin/activate
+# Windows
+.venv\Scripts\activate
+
+# 依存関係をインストール
 uv pip install -r requirements.txt
 ```
 
-### メインプログラムの実行
+3. **初期データのセットアップ**
 
 ```bash
+# 顔貌コレクションデータのダウンロードとインデックス構築
+python -m src.main setup
+```
+
+## 🚀 使用方法
+
+### APIサーバーの起動
+
+```bash
+# 開発サーバーを起動
 python -m src.main
+
+# または直接uvicornで起動
+uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### LLMを活用した開発ワークフロー
+サーバーが起動したら、以下のURLでアクセスできます：
 
-このボイラープレートは、LLM（Cline/Cursor等）を活用した以下の開発ワークフローを前提としています：
+- **API ドキュメント**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **ヘルスチェック**: http://localhost:8000/api/v1/health
 
-1. プロジェクトの要件をLLMに伝える
-2. LLMが`docs/design.md.sample`テンプレートをベースに、要件に合わせた`docs/design.md`を自動生成
-3. 生成された設計書に基づいて、LLMがコードを実装
-4. テストコードの作成と実行
+### API使用例
 
-このワークフローにより、要件定義から実装までの一貫性が保たれ、効率的な開発が可能になります。
-
-#### LLMへの指示例
-
-```
-このリポジトリを使って、以下の要件のプロジェクトを実装してください。
-
-<プロジェクトの要件>
-
-docs/design.md.sample をベースに設計書を作成し、その設計に基づいて実装を行ってください。
-```
-
-## テスト
-
-テストの実行:
+#### 1. 顔画像をアップロードして類似検索
 
 ```bash
+curl -X POST "http://localhost:8000/api/v1/upload" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@your_photo.jpg" \
+  -F "k=5"
+```
+
+#### 2. ヘルスチェック
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/health"
+```
+
+#### 3. 統計情報の取得
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/statistics"
+```
+
+#### 4. 特定画像のメタデータ取得
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/metadata/ganbo_0001"
+```
+
+### レスポンス例
+
+```json
+{
+  "detected_faces": 1,
+  "main_face": {
+    "confidence": 0.95,
+    "method": "opencv"
+  },
+  "similar_faces": [
+    {
+      "rank": 1,
+      "similarity": 0.85,
+      "image_id": "ganbo_0001",
+      "person_name": "織田信長",
+      "era": "戦国時代",
+      "source": "本能寺の変図屏風",
+      "collection": "京都国立博物館",
+      "license": "CC BY 4.0"
+    }
+  ],
+  "search_params": {
+    "k": 5,
+    "similarity_threshold": 0.6
+  }
+}
+```
+
+## 🧪 テスト
+
+### テストの実行
+
+```bash
+# 全テストを実行
 pytest
+
+# 詳細な出力でテスト実行
+pytest -v
+
+# カバレッジ付きでテスト実行
+pytest --cov=src
+
+# 特定のテストファイルのみ実行
+pytest tests/test_api.py
 ```
 
-## 設計書テンプレート
+### テストファイル構成
 
-`docs/design.md.sample`には、プロジェクトの要件定義から設計、開発工程までを体系的に記述するためのテンプレートが含まれています。このテンプレートは以下の特徴を持っています：
+- `tests/test_face_detection.py` - 顔検出機能のテスト
+- `tests/test_face_encoding.py` - 顔特徴量抽出機能のテスト
+- `tests/test_api.py` - API エンドポイントのテスト
 
-- 要件定義セクション（基本情報、プロジェクト概要、機能要件、非機能要件など）
-- システム設計セクション（アーキテクチャ、クラス設計、データフロー、エラーハンドリングなど）
-- 開発工程セクション（フェーズ、マイルストーン、リスク管理など）
-
-LLMはこのテンプレートを参照し、ユーザーから提供された要件に基づいて具体的な設計書を自動生成します。ユーザーは生成された設計書を確認し、必要に応じて調整を依頼できます。
-
-## プロジェクト構造
+## 📁 プロジェクト構成
 
 ```
-.
-├── docs/               # ドキュメント
-│   └── design.md.sample  # 設計書テンプレート（LLMが参照）
-├── src/                # ソースコード
+reki-gao/
+├── src/
 │   ├── __init__.py
-│   └── main.py         # メインエントリーポイント
-├── tests/              # テストコード
+│   ├── main.py              # メインエントリーポイント
+│   ├── api.py               # FastAPI アプリケーション
+│   ├── config.py            # 設定管理
+│   ├── face_detection.py    # 顔検出機能
+│   ├── face_encoding.py     # 顔特徴量抽出機能
+│   ├── similarity_search.py # 類似検索機能
+│   └── ganbo_collection.py  # 顔貌コレクション管理
+├── tests/
 │   ├── conftest.py
-│   └── test_main.py    # メインモジュールのテスト
-├── .clinerules         # Cline設定ファイル
-├── .gitignore          # Git無視ファイル設定
-├── LICENSE             # ライセンスファイル
-├── README.md           # このファイル
-└── requirements.txt    # 依存関係
+│   ├── test_face_detection.py
+│   ├── test_face_encoding.py
+│   └── test_api.py
+├── docs/
+│   ├── design.md            # 設計書
+│   └── design.md.sample     # 設計書テンプレート
+├── data/                    # データディレクトリ（自動作成）
+├── requirements.txt         # 依存関係
+├── README.md
+└── LICENSE
 ```
 
-## ライセンス
+## ⚙️ 設定
 
-このプロジェクトは[MITライセンス](LICENSE)の下で公開されています。詳細については[LICENSE](LICENSE)ファイルを参照してください。
+主要な設定は `src/config.py` で管理されています：
+
+```python
+# API設定
+api_host: str = "0.0.0.0"
+api_port: int = 8000
+
+# ファイル処理設定
+max_file_size: int = 10 * 1024 * 1024  # 10MB
+allowed_extensions: list = [".jpg", ".jpeg", ".png"]
+
+# 顔認識設定
+face_confidence_threshold: float = 0.8
+face_vector_dimension: int = 128
+
+# 検索設定
+similarity_search_k: int = 5
+similarity_threshold: float = 0.6
+```
+
+環境変数での設定も可能です（`.env` ファイルを作成）：
+
+```bash
+DEBUG=true
+API_PORT=8080
+FACE_CONFIDENCE_THRESHOLD=0.9
+```
+
+## 📄 ライセンスとクレジット
+
+### プロジェクトライセンス
+
+このプロジェクトは MIT ライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+
+### 顔貌コレクションについて
+
+顔画像データは ROIS-CODH「顔貌コレクション」（https://codh.rois.ac.jp/face/）を利用しています。
+
+- **ライセンス**: CC BY 4.0
+- **クレジット**: ROIS-CODH「顔貌コレクション」
+- **URL**: https://codh.rois.ac.jp/face/
+
+## 🤝 コントリビューション
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## 🐛 トラブルシューティング
+
+### よくある問題
+
+#### 1. 依存関係のインストールエラー
+
+```bash
+# システムの依存関係が不足している場合
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3-dev libopencv-dev
+
+# macOS
+brew install opencv
+```
+
+#### 2. 顔検出モデルが見つからない
+
+```bash
+# OpenCVのDNNモデルをダウンロード（必要に応じて）
+# 実際の実装では自動ダウンロード機能を追加予定
+```
+
+#### 3. メモリ不足エラー
+
+- 画像サイズを小さくする
+- バッチサイズを調整する
+- システムメモリを増やす
+
+### ログの確認
+
+```bash
+# アプリケーションログの確認
+tail -f logs/app.log
+
+# デバッグモードでの実行
+DEBUG=true python -m src.main
+```
+
+## 📞 サポート
+
+問題や質問がある場合は、以下の方法でお問い合わせください：
+
+- **Issues**: GitHub Issues を作成
+- **Discussions**: GitHub Discussions で議論
+- **Email**: your-email@example.com
+
+## 🗺️ ロードマップ
+
+- [ ] フロントエンド UI の実装
+- [ ] リアルタイム顔検出（Webカメラ対応）
+- [ ] 和風デザインの UI/UX
+- [ ] 結果の共有機能
+- [ ] 多言語対応
+- [ ] Docker コンテナ対応
+- [ ] クラウドデプロイ対応
+
+---
+
+**reki-gao** - 時空を超えた顔探し体験をお楽しみください！

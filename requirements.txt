@@ -1,4 +1,32 @@
 # Requirements for the Python project
-# Add your project dependencies here.
-pytest
+# reki-gao: 顔類似検索アプリケーション
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# 顔認識・画像処理
+opencv-python==4.10.0.84
+
+# ベクトル検索・機械学習
+scikit-learn==1.4.2
+
+# 画像処理・数値計算
+numpy==1.26.4
+Pillow==10.4.0
+
+# HTTP クライアント
+httpx==0.25.0
+aiofiles==23.2.0
+
+# データ処理
+pandas==2.1.1
+
+# 開発・テスト
+pytest==7.4.2
+pytest-asyncio==0.21.1
 ruff==0.9.1
+
+# 設定管理
+python-dotenv==1.0.0

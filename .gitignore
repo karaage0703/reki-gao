@@ -172,3 +172,22 @@ cython_debug/
 
 # For MacOS
 .DS_Store
+
+# Project specific
+# Data files and temporary uploads
+data/
+temp/
+uploads/
+
+# Test images
+*.jpg
+*.png
+*.jpeg
+*.heic
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
