@@ -82,7 +82,7 @@ git clone https://github.com/rois-codh/kaokore.git
 
 # 修正済みダウンロードスクリプトを使用
 cd kaokore
-cp ../../download.py ./download.py  # 修正済みスクリプトをコピー
+cp ../../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
 python download.py
 ```
 
@@ -325,7 +325,7 @@ git clone https://github.com/rois-codh/kaokore.git
 
 # 修正済みダウンロードスクリプトを使用
 cd kaokore
-cp ../../download.py ./download.py  # 修正済みスクリプトをコピー
+cp ../../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
 python download.py
 
 # 注意: 大量の画像ファイル（約7,500枚）をダウンロードするため時間がかかります
@@ -338,7 +338,7 @@ python download.py
 - マルチプロセシングプールの不適切なクリーンアップ
 - `BrokenPipeError`や`ResourceWarning`の発生
 
-本プロジェクトの`data/kaokore/download.py`は**GitHub PR #5の修正版**を適用済みで、以下の修正が含まれています：
+本プロジェクトの`scripts/download_kaokore.py`は**GitHub PR #5の修正版**を適用済みで、以下の修正が含まれています：
 ```python
 # マルチプロセシングプールの適切なクリーンアップ
 pool.close()  # 新しいタスクの受付を停止
