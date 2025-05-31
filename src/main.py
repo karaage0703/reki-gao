@@ -2,12 +2,9 @@
 reki-gao メインエントリーポイント
 """
 
-import asyncio
 import logging
 
 from .config import settings, ensure_directories
-from .face_detection import FaceDetector
-from .face_encoding import FaceEncoder
 
 # ログ設定
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
