@@ -73,34 +73,15 @@ check_uv() {
     fi
 }
 
-# システム依存関係のインストール
-install_system_deps() {
-    print_status "システム依存関係をチェックしています..."
+# 必要なディレクトリの作成
+create_directories() {
+    print_status "必要なディレクトリを作成しています..."
     
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux
-        if command -v apt-get &> /dev/null; then
-            print_status "Ubuntu/Debian 用の依存関係をインストールしています..."
-            sudo apt-get update
-            sudo apt-get install -y python3-dev libopencv-dev python3-opencv
-        elif command -v yum &> /dev/null; then
-            print_status "CentOS/RHEL 用の依存関係をインストールしています..."
-            sudo yum install -y python3-devel opencv-devel
-        else
-            print_warning "パッケージマネージャーが見つかりません。手動でOpenCVをインストールしてください。"
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        if command -v brew &> /dev/null; then
-            print_status "macOS 用の依存関係をインストールしています..."
-            brew install opencv
-        else
-            print_warning "Homebrew が見つかりません。手動でOpenCVをインストールしてください。"
-        fi
-    else
-        print_warning "未対応のOS: $OSTYPE"
-        print_warning "手動でOpenCVをインストールしてください。"
-    fi
+    mkdir -p data/ganbo_collection/images
+    mkdir -p data/ganbo_collection/metadata
+    mkdir -p temp/uploads
+    
+    print_success "ディレクトリを作成しました"
 }
 
 # 仮想環境の作成
@@ -156,8 +137,12 @@ setup_initial_data() {
     # 仮想環境をアクティベート
     source .venv/bin/activate
     
-    # 初期データセットアップを実行
-    python -m src.main setup
+    # 設定ファイルの初期化を実行
+    python -c "
+from src.config import ensure_directories
+ensure_directories()
+print('✓ 必要なディレクトリを作成しました')
+"
     
     print_success "初期データのセットアップが完了しました"
 }
@@ -189,7 +174,7 @@ main() {
     # 各ステップを実行
     check_python
     check_uv
-    install_system_deps
+    create_directories
     create_venv
     install_dependencies
     create_env_file
