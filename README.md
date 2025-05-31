@@ -258,7 +258,7 @@ FACE_CONFIDENCE_THRESHOLD=0.9
 
 ### KaoKoreデータセットについて
 
-顔画像データは ROIS-CODH「KaoKore」（https://github.com/rois-codh/kaokore）を利用しています。
+顔画像データは ROIS-CODH「KaoKore」（ https://github.com/rois-codh/kaokore ）を利用しています。
 
 - **ライセンス**: CC BY 4.0
 - **クレジット**: ROIS-CODH「KaoKore」
