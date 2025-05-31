@@ -19,9 +19,7 @@ from .config import settings, ensure_directories
 from .face_detection import FaceDetector
 from .face_encoding import FaceEncoder
 from .kaokore_loader import kaokore_loader
-from .similarity_search import SimilaritySearcher
 from .kaokore_similarity_search import get_kaokore_similarity_searcher
-from .ganbo_collection import GanboCollectionManager
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -51,14 +49,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # グローバル変数（アプリケーション起動時に初期化）
 face_detector: Optional[FaceDetector] = None
 face_encoder: Optional[FaceEncoder] = None
-similarity_searcher: Optional[SimilaritySearcher] = None
-ganbo_manager: Optional[GanboCollectionManager] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """アプリケーション起動時の初期化処理"""
-    global face_detector, face_encoder, similarity_searcher, ganbo_manager
+    global face_detector, face_encoder
 
     logger.info("Starting reki-gao API server...")
 
@@ -72,12 +68,6 @@ async def startup_event():
 
         logger.info("Initializing face encoder...")
         face_encoder = FaceEncoder()
-
-        logger.info("Initializing similarity searcher...")
-        similarity_searcher = SimilaritySearcher()
-
-        logger.info("Initializing ganbo collection manager...")
-        ganbo_manager = GanboCollectionManager()
 
         # KaoKore類似検索の初期化（設定ファイルまたはコマンドライン引数から制限値を取得）
         logger.info("Initializing KaoKore similarity searcher...")
@@ -110,20 +100,6 @@ def get_face_encoder() -> FaceEncoder:
     return face_encoder
 
 
-def get_similarity_searcher() -> SimilaritySearcher:
-    """類似検索器の依存性注入"""
-    if similarity_searcher is None:
-        raise HTTPException(status_code=500, detail="Similarity searcher not initialized")
-    return similarity_searcher
-
-
-def get_ganbo_manager() -> GanboCollectionManager:
-    """顔貌コレクション管理器の依存性注入"""
-    if ganbo_manager is None:
-        raise HTTPException(status_code=500, detail="Ganbo collection manager not initialized")
-    return ganbo_manager
-
-
 @app.get("/")
 async def root():
     """ルートエンドポイント - GUIにリダイレクト"""
@@ -137,18 +113,18 @@ async def health_check():
         # 各コンポーネントの状態をチェック
         detector_status = face_detector is not None
         encoder_status = face_encoder is not None
-        searcher_status = similarity_searcher is not None
-        manager_status = ganbo_manager is not None
 
-        index_size = similarity_searcher.get_index_size() if similarity_searcher else 0
+        # KaoKore類似検索の状態をチェック
+        kaokore_searcher = get_kaokore_similarity_searcher()
+        kaokore_status = kaokore_searcher is not None
+        index_size = len(kaokore_searcher.vectors) if kaokore_searcher and kaokore_searcher.vectors is not None else 0
 
         return {
             "status": "healthy",
             "components": {
                 "face_detector": detector_status,
                 "face_encoder": encoder_status,
-                "similarity_searcher": searcher_status,
-                "ganbo_manager": manager_status,
+                "kaokore_searcher": kaokore_status,
             },
             "index_size": index_size,
             "version": settings.app_version,
@@ -239,9 +215,9 @@ async def upload_and_search(
 
 
 @app.get("/api/v1/metadata/{image_id}")
-async def get_metadata(image_id: str, manager: GanboCollectionManager = Depends(get_ganbo_manager)):
+async def get_metadata(image_id: str):
     """
-    特定画像のメタデータを取得
+    特定画像のメタデータを取得（KaoKoreデータセットから）
 
     Args:
         image_id: 画像ID
@@ -250,11 +226,12 @@ async def get_metadata(image_id: str, manager: GanboCollectionManager = Depends(
         画像のメタデータ
     """
     try:
-        metadata = manager.get_metadata(image_id)
+        # KaoKoreローダーからメタデータを取得
+        metadata = kaokore_loader.get_image_metadata(image_id)
         if not metadata:
             raise HTTPException(status_code=404, detail="Image metadata not found")
 
-        return metadata
+        return {"image_id": image_id, "metadata": metadata}
 
     except HTTPException:
         raise

@@ -68,11 +68,17 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-3. **初期データのセットアップ**
+3. **KaoKoreデータセットのダウンロード**
 
 ```bash
-# 顔貌コレクションデータのダウンロードとインデックス構築
-python -m src.main setup
+# KaoKoreデータセットのダウンロード
+cd data/kaokore
+git clone https://github.com/rois-codh/kaokore.git
+
+# 修正済みダウンロードスクリプトを使用
+cd kaokore
+cp ../../download.py ./download.py  # 修正済みスクリプトをコピー
+python download.py
 ```
 
 ## 🚀 使用方法
@@ -120,10 +126,10 @@ curl -X GET "http://localhost:8000/api/v1/statistics"
 #### 4. 特定画像のメタデータ取得
 
 ```bash
-curl -X GET "http://localhost:8000/api/v1/metadata/ganbo_0001"
+curl -X GET "http://localhost:8000/api/v1/metadata/00000668.jpg"
 ```
 
-### レスポンス例
+### レスポンス例（顔画像アップロード検索）
 
 ```json
 {
@@ -136,11 +142,14 @@ curl -X GET "http://localhost:8000/api/v1/metadata/ganbo_0001"
     {
       "rank": 1,
       "similarity": 0.85,
-      "image_id": "ganbo_0001",
-      "person_name": "織田信長",
-      "era": "戦国時代",
-      "source": "本能寺の変図屏風",
-      "collection": "京都国立博物館",
+      "image_id": "00000701.jpg",
+      "person_name": "大橋の中将",
+      "era": "平安時代",
+      "tags": ["ひき人", "狂人"],
+      "gender": "男性",
+      "status": "貴族",
+      "source": "源氏物語絵巻",
+      "collection": "徳川美術館",
       "license": "CC BY 4.0"
     }
   ],
@@ -181,23 +190,26 @@ pytest tests/test_api.py
 reki-gao/
 ├── src/
 │   ├── __init__.py
-│   ├── main.py              # メインエントリーポイント
-│   ├── api.py               # FastAPI アプリケーション
-│   ├── config.py            # 設定管理
-│   ├── face_detection.py    # 顔検出機能
-│   ├── face_encoding.py     # 顔特徴量抽出機能
-│   ├── similarity_search.py # 類似検索機能
-│   └── ganbo_collection.py  # 顔貌コレクション管理
+│   ├── main.py                      # メインエントリーポイント
+│   ├── api.py                       # FastAPI アプリケーション
+│   ├── config.py                    # 設定管理
+│   ├── face_detection.py            # 顔検出機能
+│   ├── face_encoding.py             # 顔特徴量抽出機能
+│   ├── kaokore_similarity_search.py # KaoKore類似検索機能
+│   └── kaokore_loader.py            # KaoKoreデータセット読み込み
+├── static/
+│   └── index.html                   # WebGUI
 ├── tests/
 │   ├── conftest.py
 │   ├── test_face_detection.py
 │   ├── test_face_encoding.py
 │   └── test_api.py
 ├── docs/
-│   ├── design.md            # 設計書
-│   └── design.md.sample     # 設計書テンプレート
-├── data/                    # データディレクトリ（自動作成）
-├── requirements.txt         # 依存関係
+│   ├── design.md                    # 設計書
+│   └── design.md.sample             # 設計書テンプレート
+├── data/
+│   └── kaokore/                     # KaoKoreデータセット
+├── requirements.txt                 # 依存関係
 ├── README.md
 └── LICENSE
 ```
@@ -238,13 +250,14 @@ FACE_CONFIDENCE_THRESHOLD=0.9
 
 このプロジェクトは MIT ライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
 
-### 顔貌コレクションについて
+### KaoKoreデータセットについて
 
-顔画像データは ROIS-CODH「顔貌コレクション」（https://codh.rois.ac.jp/face/）を利用しています。
+顔画像データは ROIS-CODH「KaoKore」（https://github.com/rois-codh/kaokore）を利用しています。
 
 - **ライセンス**: CC BY 4.0
-- **クレジット**: ROIS-CODH「顔貌コレクション」
-- **URL**: https://codh.rois.ac.jp/face/
+- **クレジット**: ROIS-CODH「KaoKore」
+- **URL**: https://github.com/rois-codh/kaokore
+- **論文**: "KaoKore: A Pre-modern Japanese Art Facial Expression Dataset"
 
 ## 🤝 コントリビューション
 

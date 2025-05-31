@@ -37,12 +37,9 @@ class Settings(BaseSettings):
 
     # データ設定
     data_dir: str = "data"
-    ganbo_collection_dir: str = "data/ganbo_collection"
     kaokore_images_dir: str = "data/kaokore/kaokore/images_256"
     kaokore_tags_path: str = "data/kaokore/kaokore/original_tags.txt"
     kaokore_max_images: Optional[int] = 100  # KaoKore処理画像数制限（Noneで全画像）
-    faiss_index_path: str = "data/face_vectors.pkl"
-    metadata_path: str = "data/metadata.json"
 
     # 外部API設定
     codh_api_base_url: str = "https://codh.rois.ac.jp/face/api"
@@ -71,7 +68,6 @@ def ensure_directories():
     directories = [
         root / settings.upload_dir,
         root / settings.data_dir,
-        root / settings.ganbo_collection_dir,
     ]
 
     for directory in directories:
