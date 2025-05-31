@@ -283,6 +283,100 @@ brew install opencv
 - バッチサイズを調整する
 - システムメモリを増やす
 
+#### 4. サーバー起動時のポートエラー
+
+```bash
+# エラー: [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+
+# 既存のプロセスを確認・終了
+lsof -ti:8000 | xargs kill -9
+
+# または別のポートで起動
+uvicorn src.api:app --host 0.0.0.0 --port 8001
+```
+
+#### 5. KaoKoreデータセットのダウンロード
+
+**推奨方法（修正済みスクリプト使用）:**
+
+```bash
+# KaoKoreデータセットのダウンロード
+cd data/kaokore
+git clone https://github.com/rois-codh/kaokore.git
+
+# 修正済みダウンロードスクリプトを使用
+cd kaokore
+cp ../../download.py ./download.py  # 修正済みスクリプトをコピー
+python download.py
+
+# 注意: 大量の画像ファイル（約7,500枚）をダウンロードするため時間がかかります
+# ダウンロード完了後、約1GB程度のディスク容量を使用します
+```
+
+**オリジナルスクリプトの問題と修正内容:**
+
+オリジナルのKaoKoreダウンロードスクリプトには以下の問題があります：
+- マルチプロセシングプールの不適切なクリーンアップ
+- `BrokenPipeError`や`ResourceWarning`の発生
+
+本プロジェクトの`data/kaokore/download.py`は**GitHub PR #5の修正版**を適用済みで、以下の修正が含まれています：
+```python
+# マルチプロセシングプールの適切なクリーンアップ
+pool.close()  # 新しいタスクの受付を停止
+pool.join()   # 全てのワーカープロセスの完了を待機
+```
+
+**エラーが発生する場合の対処法:**
+
+```bash
+# シングルスレッドで実行（安全だが低速）
+python download.py --threads 1
+
+# 既存ファイルを上書きして再実行
+python download.py --force
+
+# プログレスバー付きで実行（tqdmが必要）
+pip install tqdm
+python download.py
+```
+
+#### 6. 起動時間の短縮について
+
+**読み込み枚数の制限**
+
+システムは起動時間を短縮するため、デフォルトでKaoKoreデータセットの最初の100枚のみを処理します：
+
+- 処理対象: `00000668.jpg` から `00000767.jpg` まで
+- 起動時間: 約2-3秒（全7,500枚の場合は数分かかる）
+- メモリ使用量: 約100MB（全データの場合は1GB以上）
+
+**設定方法:**
+
+1. **`.env`ファイルで設定（推奨）:**
+```bash
+# .envファイルを編集
+KAOKORE_MAX_IMAGES=100    # 100枚制限
+KAOKORE_MAX_IMAGES=500    # 500枚制限
+KAOKORE_MAX_IMAGES=0      # 全画像使用（制限なし）
+```
+
+2. **コマンドライン引数で設定:**
+```bash
+# 100枚制限で起動
+python -m src.main --max-images 100
+
+# 500枚制限で起動
+python -m src.main --max-images 500
+
+# 全画像使用で起動
+python -m src.main --max-images 0
+
+# .env設定を使用（引数なし）
+python -m src.main
+```
+
+**注意:** コマンドライン引数は`.env`設定を上書きします。
+
 ### ログの確認
 
 ```bash

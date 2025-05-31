@@ -2,7 +2,6 @@
 reki-gao アプリケーション設定
 """
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -39,6 +38,9 @@ class Settings(BaseSettings):
     # データ設定
     data_dir: str = "data"
     ganbo_collection_dir: str = "data/ganbo_collection"
+    kaokore_images_dir: str = "data/kaokore/kaokore/images_256"
+    kaokore_tags_path: str = "data/kaokore/kaokore/original_tags.txt"
+    kaokore_max_images: Optional[int] = 100  # KaoKore処理画像数制限（Noneで全画像）
     faiss_index_path: str = "data/face_vectors.pkl"
     metadata_path: str = "data/metadata.json"
 

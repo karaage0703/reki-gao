@@ -5,23 +5,22 @@ reki-gao 顔類似検索API
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import numpy as np
 import cv2
 from PIL import Image
 import io
 import logging
-from typing import List, Dict, Optional
-import asyncio
-from pathlib import Path
-import tempfile
-import os
+from typing import Optional
 
 from .config import settings, ensure_directories
 from .face_detection import FaceDetector
 from .face_encoding import FaceEncoder
+from .kaokore_loader import kaokore_loader
 from .similarity_search import SimilaritySearcher
+from .kaokore_similarity_search import get_kaokore_similarity_searcher
 from .ganbo_collection import GanboCollectionManager
 
 # ログ設定
@@ -45,6 +44,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Staticファイルのマウント
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # グローバル変数（アプリケーション起動時に初期化）
 face_detector: Optional[FaceDetector] = None
@@ -77,10 +79,9 @@ async def startup_event():
         logger.info("Initializing ganbo collection manager...")
         ganbo_manager = GanboCollectionManager()
 
-        # インデックスが存在しない場合は初期化
-        if similarity_searcher.get_index_size() == 0:
-            logger.info("No existing index found. Building initial index...")
-            await build_initial_index()
+        # KaoKore類似検索の初期化（設定ファイルまたはコマンドライン引数から制限値を取得）
+        logger.info("Initializing KaoKore similarity searcher...")
+        get_kaokore_similarity_searcher()  # インスタンスを初期化（グローバル変数に保存される）
 
         logger.info("reki-gao API server started successfully!")
 
@@ -93,77 +94,6 @@ async def startup_event():
 async def shutdown_event():
     """アプリケーション終了時の処理"""
     logger.info("Shutting down reki-gao API server...")
-
-
-async def build_initial_index():
-    """初期インデックスを構築"""
-    try:
-        # 顔貌コレクションデータをダウンロード（サンプルデータ）
-        logger.info("Downloading ganbo collection data...")
-        await ganbo_manager.download_collection_data(limit=10)  # 初期は少数で
-
-        # 画像を前処理
-        processed_images = await ganbo_manager.preprocess_images()
-
-        if not processed_images:
-            logger.warning("No images found for index building")
-            return
-
-        # 各画像から特徴量を抽出
-        vectors = []
-        metadata_list = []
-
-        for image_info in processed_images:
-            try:
-                # 画像を読み込み
-                image_path = image_info["image_path"]
-                if not os.path.exists(image_path) or os.path.getsize(image_path) == 0:
-                    # サンプル画像を生成（開発用）
-                    sample_image = np.random.randint(0, 255, (400, 600, 3), dtype=np.uint8)
-                    cv2.imwrite(image_path, sample_image)
-
-                image = cv2.imread(image_path)
-                if image is None:
-                    continue
-
-                # 顔検出
-                faces = face_detector.detect_faces(image)
-                if not faces:
-                    # 顔が検出されない場合は画像全体を使用
-                    face_crop = image
-                else:
-                    # 最初の顔を使用
-                    face_crop = face_detector.crop_face(image, faces[0])
-
-                if face_crop is None:
-                    continue
-
-                # 前処理
-                preprocessed_face = face_detector.preprocess_face_for_encoding(face_crop)
-                if preprocessed_face is None:
-                    continue
-
-                # 特徴量抽出
-                encoding = face_encoder.encode_face(preprocessed_face)
-                if encoding is not None and face_encoder.is_valid_encoding(encoding):
-                    vectors.append(encoding)
-                    metadata_list.append(image_info["metadata"])
-
-            except Exception as e:
-                logger.error(f"Failed to process image {image_info['image_id']}: {e}")
-                continue
-
-        if vectors:
-            # インデックスを構築
-            logger.info(f"Building index with {len(vectors)} vectors...")
-            similarity_searcher.build_index(vectors, metadata_list)
-            similarity_searcher.save_index()
-            logger.info("Index built successfully!")
-        else:
-            logger.warning("No valid face encodings found for index building")
-
-    except Exception as e:
-        logger.error(f"Failed to build initial index: {e}")
 
 
 def get_face_detector() -> FaceDetector:
@@ -196,13 +126,8 @@ def get_ganbo_manager() -> GanboCollectionManager:
 
 @app.get("/")
 async def root():
-    """ルートエンドポイント"""
-    return {
-        "message": "reki-gao API",
-        "description": "現代人の顔写真と歴史上の人物の顔を比較する類似検索API",
-        "version": settings.app_version,
-        "docs": "/docs",
-    }
+    """ルートエンドポイント - GUIにリダイレクト"""
+    return FileResponse("static/index.html")
 
 
 @app.get("/api/v1/health")
@@ -239,7 +164,6 @@ async def upload_and_search(
     k: int = 5,
     detector: FaceDetector = Depends(get_face_detector),
     encoder: FaceEncoder = Depends(get_face_encoder),
-    searcher: SimilaritySearcher = Depends(get_similarity_searcher),
 ):
     """
     画像をアップロードして類似顔検索を実行
@@ -267,7 +191,7 @@ async def upload_and_search(
             image_array = np.array(image.convert("RGB"))
             # OpenCVはBGRなので変換
             image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
-        except Exception as e:
+        except Exception:
             raise HTTPException(status_code=400, detail="Invalid image file")
 
         # 顔検出
@@ -289,11 +213,12 @@ async def upload_and_search(
 
         # 特徴量抽出
         encoding = encoder.encode_face(preprocessed_face)
-        if encoding is None or not encoder.is_valid_encoding(encoding):
+        if encoding is None or encoding.size == 0:
             raise HTTPException(status_code=400, detail="Failed to extract face features")
 
-        # 類似検索
-        similar_faces = searcher.search_similar_faces(encoding, k=k)
+        # KaoKore類似検索
+        kaokore_searcher = get_kaokore_similarity_searcher()
+        similar_faces = kaokore_searcher.search_similar_faces(encoding, k=k)
 
         # 結果を整形
         result = {
@@ -339,23 +264,34 @@ async def get_metadata(image_id: str, manager: GanboCollectionManager = Depends(
 
 
 @app.get("/api/v1/statistics")
-async def get_statistics(
-    searcher: SimilaritySearcher = Depends(get_similarity_searcher),
-    manager: GanboCollectionManager = Depends(get_ganbo_manager),
-):
+async def get_statistics():
     """
-    システム統計情報を取得
+    システム統計情報を取得（KaoKore専用）
 
     Returns:
         統計情報
     """
     try:
-        search_stats = searcher.get_statistics()
-        collection_stats = manager.get_statistics()
+        # KaoKore類似検索の統計を取得
+        kaokore_searcher = get_kaokore_similarity_searcher()
+
+        # KaoKoreデータセットの統計
+        kaokore_stats = kaokore_loader.get_statistics()
+        available_images = len(kaokore_loader.get_available_images())
+
+        # KaoKore処理済み画像数を取得
+        processed_vectors = len(kaokore_searcher.vectors) if kaokore_searcher.vectors is not None else 0
 
         return {
-            "search_engine": search_stats,
-            "collection": collection_stats,
+            "search_engine": {
+                "total_vectors": processed_vectors,
+                "metadata_entries": kaokore_stats["total_images"],
+                "vector_dimension": settings.face_vector_dimension,
+            },
+            "collection": {
+                "downloaded_images": available_images,
+                "total_metadata": kaokore_stats["total_images"],
+            },
             "system": {
                 "version": settings.app_version,
                 "face_vector_dimension": settings.face_vector_dimension,
@@ -368,29 +304,109 @@ async def get_statistics(
         raise HTTPException(status_code=500, detail="Failed to retrieve statistics")
 
 
-@app.post("/api/v1/admin/rebuild-index")
-async def rebuild_index(
-    manager: GanboCollectionManager = Depends(get_ganbo_manager),
-    searcher: SimilaritySearcher = Depends(get_similarity_searcher),
-):
+@app.get("/api/v1/kaokore/statistics")
+async def get_kaokore_statistics():
     """
-    インデックスを再構築（管理者用）
+    KaoKoreデータセットの統計情報を取得
 
     Returns:
-        再構築結果
+        KaoKoreデータセットの統計情報
     """
     try:
-        logger.info("Starting index rebuild...")
-        await build_initial_index()
+        stats = kaokore_loader.get_statistics()
+        unique_tags = kaokore_loader.get_unique_tags()
+        unique_sources = kaokore_loader.get_unique_sources()
 
-        new_size = searcher.get_index_size()
-        logger.info(f"Index rebuild completed. New size: {new_size}")
-
-        return {"status": "success", "message": "Index rebuilt successfully", "new_index_size": new_size}
+        return {
+            "dataset_name": "KaoKore Dataset",
+            "statistics": stats,
+            "unique_tags": unique_tags[:20],  # 最初の20個のタグ
+            "total_unique_tags": len(unique_tags),
+            "unique_sources": unique_sources,
+            "available_images": len(kaokore_loader.get_available_images()),
+        }
 
     except Exception as e:
-        logger.error(f"Index rebuild failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to rebuild index")
+        logger.error(f"Failed to get KaoKore statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve KaoKore statistics")
+
+
+@app.get("/api/v1/kaokore/search/tag/{tag}")
+async def search_kaokore_by_tag(tag: str):
+    """
+    タグでKaoKore画像を検索
+
+    Args:
+        tag: 検索するタグ
+
+    Returns:
+        タグに一致する画像一覧
+    """
+    try:
+        results = kaokore_loader.search_by_tag(tag)
+
+        return {
+            "tag": tag,
+            "total_results": len(results),
+            "results": [
+                {"filename": filename, "metadata": metadata}
+                for filename, metadata in results[:50]  # 最初の50件
+            ],
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to search KaoKore by tag {tag}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search by tag")
+
+
+@app.get("/api/v1/kaokore/image/{filename}")
+async def get_kaokore_image(filename: str):
+    """
+    KaoKore画像ファイルを取得
+
+    Args:
+        filename: 画像ファイル名
+
+    Returns:
+        画像ファイル
+    """
+    try:
+        image_path = kaokore_loader.get_image_path(filename)
+        if not image_path or not image_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        return FileResponse(path=str(image_path), media_type="image/jpeg", filename=filename)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get KaoKore image {filename}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve image")
+
+
+@app.get("/api/v1/kaokore/info/{filename}")
+async def get_kaokore_image_info(filename: str):
+    """
+    KaoKore画像の詳細情報を取得
+
+    Args:
+        filename: 画像ファイル名
+
+    Returns:
+        画像の詳細情報
+    """
+    try:
+        info = kaokore_loader.get_image_info(filename)
+        if not info:
+            raise HTTPException(status_code=404, detail="Image info not found")
+
+        return {"filename": filename, "metadata": info}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get KaoKore image info {filename}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve image info")
 
 
 if __name__ == "__main__":

@@ -351,3 +351,210 @@ class GanboCollectionManager:
   - 対応策: 事前のAPI調査、代替データソースの検討
 - 性能要件未達
   - 対応策: 処理の並列化、モデルの軽量化、キャッシュ機能追加
+
+## 3. 運用・保守設計
+
+### 3.1 データセット管理
+
+#### 3.1.1 KaoKoreデータセットのダウンロード
+
+**推奨ダウンロード手順（修正済みスクリプト使用）:**
+```bash
+# 1. データディレクトリに移動
+cd data/kaokore
+
+# 2. KaoKoreリポジトリをクローン
+git clone https://github.com/rois-codh/kaokore.git
+
+# 3. 修正済みダウンロードスクリプトを使用
+cd kaokore
+cp ../../download.py ./download.py  # 修正済みスクリプトをコピー
+python download.py
+```
+
+**オリジナルスクリプトの問題と修正内容:**
+
+**問題:**
+- オリジナルの`download.py`にマルチプロセシング関連のバグが存在
+- `pool.close()`と`pool.join()`の呼び出し不足
+- 以下のエラーが発生する可能性:
+  ```
+  BrokenPipeError: [Errno 32] Broken pipe
+  ResourceWarning: unclosed <multiprocessing.pool.Pool object>
+  ```
+
+**修正内容（GitHub PR #5ベース）:**
+```python
+# 修正前（オリジナル）
+for i, _ in enumerate(pool.imap_unordered(download_and_check_image, zip_params)):
+    print("Download images: %7d / %d Done" % (i + 1, len(iurls)), end="\r", flush=True)
+print()
+# プールのクリーンアップなし → バグの原因
+
+# 修正後（本プロジェクト版）
+for i, _ in enumerate(pool.imap_unordered(download_and_check_image, zip_params)):
+    print("Download images: %7d / %d Done" % (i + 1, len(iurls)), end="\r", flush=True)
+print()
+
+# マルチプロセシングプールの適切なクリーンアップ（GitHub PR #5 修正版）
+pool.close()  # 新しいタスクの受付を停止
+pool.join()   # 全てのワーカープロセスの完了を待機
+```
+
+**注意事項:**
+- 約7,500枚の画像ファイルをダウンロード（約1GB）
+- ダウンロード時間: 環境により10-30分程度
+- マルチプロセシング処理によりCPU使用率が高くなる場合がある
+- 修正済みスクリプト使用により安定性が向上
+
+**トラブルシューティング:**
+```bash
+# エラーが発生する場合の対処法
+
+# 1. シングルスレッドで実行（最も安全）
+python download.py --threads 1
+
+# 2. 既存ファイルを上書きして再実行
+python download.py --force
+
+# 3. プログレスバー付きで実行
+pip install tqdm
+python download.py
+
+# 4. オリジナルスクリプトでエラーが出る場合
+# 本プロジェクトの修正済みスクリプトを使用
+cp ../../download.py ./download.py
+```
+
+#### 3.1.2 データ処理の制限設定
+
+**起動時間短縮のための制限:**
+- デフォルト設定: 最初の100枚のみ処理
+- 処理対象範囲: `00000668.jpg` から `00000767.jpg`
+- 起動時間: 約2-3秒（全データの場合は数分）
+- メモリ使用量: 約100MB（全データの場合は1GB以上）
+
+**設定変更方法:**
+
+1. **`.env`ファイルでの設定（推奨）:**
+```bash
+# .envファイルを編集
+KAOKORE_MAX_IMAGES=100    # 100枚制限（デフォルト）
+KAOKORE_MAX_IMAGES=500    # 500枚制限
+KAOKORE_MAX_IMAGES=1000   # 1000枚制限
+KAOKORE_MAX_IMAGES=0      # 全画像使用（制限なし）
+```
+
+2. **コマンドライン引数での設定:**
+```bash
+# 起動時に画像数を指定
+python -m src.main --max-images 100   # 100枚制限
+python -m src.main --max-images 500   # 500枚制限
+python -m src.main --max-images 0     # 全画像使用
+python -m src.main                    # .env設定を使用
+```
+
+3. **設定の優先順位:**
+- コマンドライン引数 > `.env`ファイル > デフォルト値(100)
+
+4. **設定ファイルの場所:**
+- `.env`: プロジェクトルートの環境設定ファイル
+- `src/config.py`: 設定クラスの定義
+
+### 3.2 サーバー運用
+
+#### 3.2.1 起動・停止手順
+
+**正常起動:**
+```bash
+# 仮想環境をアクティベート
+source .venv/bin/activate
+
+# サーバー起動
+python -m src.main
+```
+
+**ポート競合エラーの対処:**
+```bash
+# エラー例: [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+
+# 1. 既存プロセスの確認・終了
+lsof -ti:8000 | xargs kill -9
+
+# 2. 別ポートでの起動
+uvicorn src.api:app --host 0.0.0.0 --port 8001
+
+# 3. 環境変数での設定
+export API_PORT=8001
+python -m src.main
+```
+
+#### 3.2.2 ログ監視
+
+**ログレベル設定:**
+- INFO: 通常運用時の情報
+- WARNING: 処理失敗時の警告
+- ERROR: システムエラー
+
+**主要ログメッセージ:**
+- 起動時: "Starting reki-gao API server..."
+- 顔検出: "Detected X faces"
+- 検索完了: "Face search completed: X similar faces found"
+- エラー: "Face search failed: [エラー詳細]"
+
+### 3.3 性能監視
+
+#### 3.3.1 処理時間の目安
+
+**画像処理時間:**
+- 顔検出: 100-500ms
+- 特徴量抽出: 50-200ms
+- 類似検索: 10-50ms
+- 合計: 200-800ms（画像サイズ・品質により変動）
+
+**メモリ使用量:**
+- ベースライン: 200-300MB
+- 100枚制限時: 400-500MB
+- 全データ時: 1.5-2GB
+
+#### 3.3.2 パフォーマンス最適化
+
+**推奨設定:**
+- 開発環境: 100枚制限（高速起動）
+- 本番環境: 全データ（高精度検索）
+- メモリ制約環境: 50枚制限に調整可能
+
+### 3.4 トラブルシューティング
+
+#### 3.4.1 よくある問題と対処法
+
+**1. 起動時のポートエラー**
+- 原因: 既存プロセスがポート8000を使用中
+- 対処: `lsof -ti:8000 | xargs kill -9` で既存プロセス終了
+
+**2. 顔検出失敗**
+- 原因: 画像品質不良、顔が小さすぎる、角度が極端
+- 対処: 画像の品質向上、顔検出閾値の調整
+
+**3. メモリ不足**
+- 原因: 大量データ処理、メモリリーク
+- 対処: 処理枚数制限、定期的な再起動
+
+**4. 検索結果が空**
+- 原因: 類似度閾値が高すぎる、データ不足
+- 対処: 閾値調整（`similarity_threshold`）、データ範囲拡大
+
+### 3.5 バックアップ・復旧
+
+#### 3.5.1 重要データ
+
+**バックアップ対象:**
+- `data/kaokore/` - KaoKoreデータセット
+- `src/config.py` - 設定ファイル
+- `.env` - 環境変数設定
+
+**復旧手順:**
+1. リポジトリの再クローン
+2. 依存関係の再インストール
+3. KaoKoreデータの再ダウンロード
+4. 設定ファイルの復元

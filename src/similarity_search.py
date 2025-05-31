@@ -6,11 +6,10 @@ scikit-learnのNearestNeighborsを使用した高速ベクトル検索
 import numpy as np
 import json
 import pickle
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from pathlib import Path
 import logging
 from sklearn.neighbors import NearestNeighbors
-from sklearn.metrics.pairwise import cosine_similarity
 
 from .config import settings
 

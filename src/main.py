@@ -4,7 +4,6 @@ reki-gao メインエントリーポイント
 
 import asyncio
 import logging
-from pathlib import Path
 
 from .config import settings, ensure_directories
 from .ganbo_collection import GanboCollectionManager
@@ -36,8 +35,8 @@ async def setup_data():
     logger.info(f"Processed {len(processed_images)} images")
 
     # 顔検出・特徴量抽出の準備
-    face_detector = FaceDetector()
-    face_encoder = FaceEncoder()
+    FaceDetector()  # インスタンス作成（初期化のため）
+    FaceEncoder()  # インスタンス作成（初期化のため）
     similarity_searcher = SimilaritySearcher()
 
     # 各画像から特徴量を抽出してインデックスを構築
@@ -71,9 +70,28 @@ async def setup_data():
 
 def main():
     """メイン関数"""
-    import sys
+    import argparse
 
-    if len(sys.argv) > 1 and sys.argv[1] == "setup":
+    # コマンドライン引数の解析
+    parser = argparse.ArgumentParser(description="reki-gao - 歴史的人物顔類似検索システム")
+    parser.add_argument("command", nargs="?", choices=["setup"], help="実行するコマンド")
+    parser.add_argument("--max-images", type=int, help="処理する最大画像数（0で全画像、未指定時は.env設定を使用）")
+    parser.add_argument("--host", default=settings.api_host, help="APIサーバーのホスト")
+    parser.add_argument("--port", type=int, default=settings.api_port, help="APIサーバーのポート")
+
+    args = parser.parse_args()
+
+    # コマンドライン引数で最大画像数が指定された場合、設定を上書き
+    if args.max_images is not None:
+        max_images = None if args.max_images == 0 else args.max_images
+        # 設定を動的に更新
+        settings.kaokore_max_images = max_images
+        # 既存のインスタンスをリセット（設定変更を反映するため）
+        from .kaokore_similarity_search import reset_kaokore_similarity_searcher
+
+        reset_kaokore_similarity_searcher()
+
+    if args.command == "setup":
         # データセットアップモード
         asyncio.run(setup_data())
     else:
@@ -81,7 +99,9 @@ def main():
         import uvicorn
 
         logger.info("Starting reki-gao API server...")
-        uvicorn.run("src.api:app", host=settings.api_host, port=settings.api_port, reload=settings.debug, log_level="info")
+        logger.info(f"KaoKore image limit: {settings.kaokore_max_images or 'All images'}")
+
+        uvicorn.run("src.api:app", host=args.host, port=args.port, reload=settings.debug, log_level="info")
 
 
 if __name__ == "__main__":

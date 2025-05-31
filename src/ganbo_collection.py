@@ -7,12 +7,9 @@ import asyncio
 import aiofiles
 import httpx
 import json
-import csv
 from pathlib import Path
-from typing import List, Dict, Optional, AsyncGenerator
+from typing import List, Dict, Optional
 import logging
-from urllib.parse import urljoin
-import hashlib
 
 from .config import settings
 
