@@ -425,7 +425,7 @@
                     <img id="previewImage" class="preview-image" alt="プレビュー">
                 </div>
 
-                <button class="search-btn" id="searchBtn" onclick="searchSimilarFaces()" disabled>
+                <button class="search-btn" id="searchBtn" disabled>
                     🔍 類似顔を検索
                 </button>
             </div>
@@ -484,31 +484,52 @@
 
         // ページ読み込み時に統計情報を取得
         window.addEventListener('load', loadStats);
+        
+        console.log('🚀 JavaScript読み込み開始');
 
-        // ファイル選択処理
-        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-
-        // ドラッグ&ドロップ処理
-        const uploadArea = document.getElementById('uploadArea');
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
+        window.addEventListener('load', function() {
+            console.log('ページ読み込み完了');
+            setupEventListeners();
         });
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFile(files[0]);
+        function setupEventListeners() {
+            // 検索ボタン
+            const searchBtn = document.getElementById('searchBtn');
+            if (searchBtn) {
+                searchBtn.onclick = function() {
+                    console.log('検索ボタンクリック');
+                    searchSimilarFaces();
+                };
+                console.log('検索ボタン設定完了');
             }
-        });
+
+            // ファイル選択
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.onchange = handleFileSelect;
+                console.log('ファイル入力設定完了');
+            }
+
+            // ドラッグ&ドロップ
+            const uploadArea = document.getElementById('uploadArea');
+            if (uploadArea) {
+                uploadArea.ondragover = function(e) {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                };
+                uploadArea.ondragleave = function() {
+                    uploadArea.classList.remove('dragover');
+                };
+                uploadArea.ondrop = function(e) {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    if (e.dataTransfer.files.length > 0) {
+                        handleFile(e.dataTransfer.files[0]);
+                    }
+                };
+                console.log('ドラッグ&ドロップ設定完了');
+            }
+        }
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -646,10 +667,13 @@
         }
 
         async function searchSimilarFaces() {
+            console.log('検索開始'); // デバッグ用
             if (!selectedFile) {
+                console.log('ファイルが選択されていません');
                 showError('画像を選択してください。');
                 return;
             }
+            console.log('選択されたファイル:', selectedFile.name);
 
             // UI状態を更新
             document.getElementById('loadingSection').style.display = 'block';
@@ -674,6 +698,8 @@
                 }
 
                 const result = await response.json();
+                console.log('API Response:', result);
+                console.log('Main face data:', result.main_face);
                 displayResults(result);
 
             } catch (error) {
@@ -689,8 +715,51 @@
             const resultsGrid = document.getElementById('resultsGrid');
             resultsGrid.innerHTML = '';
 
+            // 検出された顔情報を表示
+            console.log('Displaying results, main_face exists:', !!result.main_face);
+            if (result.main_face) {
+                console.log('Cropped image length:', result.main_face.cropped_image ? result.main_face.cropped_image.length : 0);
+                console.log('Preprocessed image length:', result.main_face.preprocessed_image ? result.main_face.preprocessed_image.length : 0);
+                const detectedFaceCard = document.createElement('div');
+                detectedFaceCard.className = 'result-card';
+                detectedFaceCard.style.backgroundColor = '#f8f9ff';
+                detectedFaceCard.style.border = '2px solid #667eea';
+                
+                detectedFaceCard.innerHTML = `
+                    <div style="background: #667eea; color: white; padding: 10px; border-radius: 10px; margin-bottom: 15px; text-align: center;">
+                        <strong>🎯 検出された顔</strong>
+                    </div>
+                    <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 15px;">
+                        <div style="text-align: center;">
+                            <p style="margin-bottom: 5px; font-weight: bold;">切り出し画像</p>
+                            <img src="${result.main_face.cropped_image}" alt="切り出された顔" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #667eea;" 
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; width: 120px; height: 120px; background: #f0f0f0; border: 2px dashed #ccc; border-radius: 8px; line-height: 120px; text-align: center; color: #999;">画像なし</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <p style="margin-bottom: 5px; font-weight: bold;">前処理後</p>
+                            <img src="${result.main_face.preprocessed_image}" alt="前処理後の顔" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #667eea;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; width: 120px; height: 120px; background: #f0f0f0; border: 2px dashed #ccc; border-radius: 8px; line-height: 120px; text-align: center; color: #999;">画像なし</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <p><strong>検出信頼度:</strong> ${(result.main_face.confidence * 100).toFixed(1)}%</p>
+                        <p><strong>検出方法:</strong> ${result.main_face.method}</p>
+                        <p><strong>検出された顔数:</strong> ${result.detected_faces}個</p>
+                        <p style="font-size: 0.8em; color: #666;">
+                            デバッグ: 切り出し画像=${result.main_face.has_crop_image ? 'あり' : 'なし'}, 
+                            前処理画像=${result.main_face.has_preprocessed_image ? 'あり' : 'なし'}
+                        </p>
+                    </div>
+                `;
+                resultsGrid.appendChild(detectedFaceCard);
+            }
+
             if (!result.similar_faces || result.similar_faces.length === 0) {
-                resultsGrid.innerHTML = '<p style="text-align: center; color: #666;">類似する顔が見つかりませんでした。</p>';
+                const noResultsDiv = document.createElement('div');
+                noResultsDiv.innerHTML = '<p style="text-align: center; color: #666;">類似する顔が見つかりませんでした。</p>';
+                resultsGrid.appendChild(noResultsDiv);
             } else {
                 result.similar_faces.forEach((face, index) => {
                     const card = createResultCard(face, index + 1);

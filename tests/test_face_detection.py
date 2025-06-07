@@ -4,8 +4,7 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch
-import cv2
+from unittest.mock import patch
 
 from src.face_detection import FaceDetector
 
