@@ -30,3 +30,4 @@ ruff==0.9.1
 
 # 設定管理
 python-dotenv==1.0.0
+pydantic-settings==2.9.1
