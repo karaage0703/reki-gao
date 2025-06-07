@@ -203,8 +203,8 @@ async def upload_and_search(
                 face_crop_rgb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
                 face_crop_pil = Image.fromarray(face_crop_rgb.astype(np.uint8))
                 face_crop_buffer = io.BytesIO()
-                face_crop_pil.save(face_crop_buffer, format='JPEG')
-                face_crop_base64 = base64.b64encode(face_crop_buffer.getvalue()).decode('utf-8')
+                face_crop_pil.save(face_crop_buffer, format="JPEG")
+                face_crop_base64 = base64.b64encode(face_crop_buffer.getvalue()).decode("utf-8")
                 logger.info(f"Face crop encoded successfully, size: {face_crop.shape}")
             else:
                 logger.warning("Face crop is empty or None")
@@ -220,21 +220,21 @@ async def upload_and_search(
                 # 0-1の範囲の場合は0-255に変換
                 if preprocessed_face.max() <= 1.0:
                     preprocessed_face = (preprocessed_face * 255).astype(np.uint8)
-                preprocessed_pil = Image.fromarray(preprocessed_face.astype(np.uint8), mode='L')
+                preprocessed_pil = Image.fromarray(preprocessed_face.astype(np.uint8), mode="L")
             else:  # カラー
                 # 0-1の範囲の場合は0-255に変換
                 if preprocessed_face.max() <= 1.0:
                     preprocessed_face = (preprocessed_face * 255).astype(np.uint8)
-                
+
                 if preprocessed_face.shape[2] == 3:  # BGR to RGB
                     preprocessed_rgb = cv2.cvtColor(preprocessed_face.astype(np.uint8), cv2.COLOR_BGR2RGB)
                 else:
                     preprocessed_rgb = preprocessed_face.astype(np.uint8)
                 preprocessed_pil = Image.fromarray(preprocessed_rgb)
-            
+
             preprocessed_buffer = io.BytesIO()
-            preprocessed_pil.save(preprocessed_buffer, format='JPEG')
-            preprocessed_base64 = base64.b64encode(preprocessed_buffer.getvalue()).decode('utf-8')
+            preprocessed_pil.save(preprocessed_buffer, format="JPEG")
+            preprocessed_base64 = base64.b64encode(preprocessed_buffer.getvalue()).decode("utf-8")
         except Exception as prep_error:
             logger.warning(f"Failed to encode preprocessed image: {prep_error}")
             # フォールバック: エラー時は空の画像を使用
@@ -244,14 +244,14 @@ async def upload_and_search(
         result = {
             "detected_faces": len(faces),
             "main_face": {
-                "confidence": main_face["confidence"], 
+                "confidence": main_face["confidence"],
                 "method": main_face["method"],
                 "cropped_image": f"data:image/jpeg;base64,{face_crop_base64}" if face_crop_base64 else "",
                 "preprocessed_image": f"data:image/jpeg;base64,{preprocessed_base64}" if preprocessed_base64 else "",
                 "face_crop_size": face_crop.shape if face_crop is not None else None,
                 "preprocessed_size": preprocessed_face.shape if preprocessed_face is not None else None,
                 "has_crop_image": bool(face_crop_base64),
-                "has_preprocessed_image": bool(preprocessed_base64)
+                "has_preprocessed_image": bool(preprocessed_base64),
             },
             "similar_faces": similar_faces,
             "search_params": {"k": k, "similarity_threshold": settings.similarity_threshold},
