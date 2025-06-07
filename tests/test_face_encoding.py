@@ -4,8 +4,6 @@
 
 import pytest
 import numpy as np
-from unittest.mock import patch, Mock
-import cv2
 
 from src.face_encoding import FaceEncoder
 

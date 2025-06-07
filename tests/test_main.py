@@ -2,9 +2,7 @@
 メイン機能のテスト
 """
 
-import pytest
-from unittest.mock import patch, Mock
-import argparse
+from unittest.mock import patch
 
 from src.main import main
 
@@ -47,7 +45,7 @@ def test_main_with_max_images_override(mock_reset):
     """max-images引数での設定上書きテスト"""
     test_args = ["main.py", "--max-images", "200"]
 
-    with patch("uvicorn.run") as mock_run:
+    with patch("uvicorn.run"):
         with patch("sys.argv", test_args):
             main()
 
@@ -65,7 +63,7 @@ def test_main_with_max_images_zero(mock_reset):
     """max-images=0（全画像使用）のテスト"""
     test_args = ["main.py", "--max-images", "0"]
 
-    with patch("uvicorn.run") as mock_run:
+    with patch("uvicorn.run"):
         with patch("sys.argv", test_args):
             main()
 
@@ -82,7 +80,7 @@ def test_main_without_max_images():
     """max-images引数なしのテスト"""
     test_args = ["main.py"]
 
-    with patch("uvicorn.run") as mock_run:
+    with patch("uvicorn.run"):
         with patch("src.kaokore_similarity_search.reset_kaokore_similarity_searcher") as mock_reset:
             with patch("sys.argv", test_args):
                 main()
