@@ -53,7 +53,7 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 1. **リポジトリのクローン**
 
 ```bash
-git clone https://github.com/your-username/reki-gao.git
+git clone https://github.com/karaage0703/reki-gao.git
 cd reki-gao
 ```
 
@@ -61,7 +61,7 @@ cd reki-gao
 
 ```bash
 # 仮想環境を作成
-uv venv
+uv venv --python 3.12
 
 # 仮想環境をアクティベート
 # macOS/Linux
@@ -90,6 +90,8 @@ python download.py
 ## 🚀 使用方法
 
 ### APIサーバーの起動
+
+`reki-gao`ディレクトリ直下で以下コマンドを実行してください
 
 ```bash
 # 開発サーバーを起動
