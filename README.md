@@ -77,12 +77,13 @@ uv pip install -r requirements.txt
 
 ```bash
 # KaoKoreデータセットのダウンロード
-cd data/kaokore
+mkdir data
+cd data
 git clone https://github.com/rois-codh/kaokore.git
 
 # 修正済みダウンロードスクリプトを使用
 cd kaokore
-cp ../../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
+cp ../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
 python download.py
 ```
 
@@ -320,12 +321,12 @@ uvicorn src.api:app --host 0.0.0.0 --port 8001
 
 ```bash
 # KaoKoreデータセットのダウンロード
-cd data/kaokore
+cd data
 git clone https://github.com/rois-codh/kaokore.git
 
 # 修正済みダウンロードスクリプトを使用
 cd kaokore
-cp ../../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
+cp ../../scripts/download_kaokore.py ./download.py  # 修正済みスクリプトをコピー
 python download.py
 
 # 注意: 大量の画像ファイル（約7,500枚）をダウンロードするため時間がかかります
